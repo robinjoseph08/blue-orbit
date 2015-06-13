@@ -1,10 +1,9 @@
 #include <pebble.h>
 
 // ============
-// == colors ==
+// == macros ==
 // ============
-#define MAIN_COLOR (GColor8) { .argb = 0b11000111 }
-#define SHADOW_COLOR (GColor8) { .argb = 0b11000010 }
+#define LENGTH(a) (sizeof(a) / sizeof((a)[0]))
 
 // ===============
 // == constants ==
@@ -12,7 +11,7 @@
 static const int WIDTH = 144;
 static const int HEIGHT = 168;
 static const int PADDING = 10;
-static const int SHADOW_OFFSET = 2;
+static const int SHADOW_OFFSET = 1;
 static const int TEXT_HEIGHT = 38;
 static const int TEXT_OFFSET = 3;
 static const int STROKE_WIDTH = 2;
@@ -33,6 +32,9 @@ static Layer *s_small_circle_layer;
 static Layer *s_small_circle_shadow_layer;
 // font
 static GFont s_time_font;
+// colors
+static GColor8 s_colors[6];
+static int s_color_index;
 // animations
 static PropertyAnimation *s_small_circle_property_animation;
 static PropertyAnimation *s_small_circle_shadow_property_animation;
@@ -69,6 +71,13 @@ static void update_time() {
   text_layer_set_text(s_time_layer, buffer);
   text_layer_set_text(s_time_shadow_layer, buffer);
 
+  // ===================
+  // == update colors ==
+  // ===================
+  s_color_index = tick_time->tm_min % (LENGTH(s_colors) / 2);
+  window_set_background_color(s_main_window, s_colors[s_color_index * 2]);
+  text_layer_set_text_color(s_time_shadow_layer, s_colors[s_color_index * 2 + 1]);
+
   // ==========================
   // == animate small circle ==
   // ==========================
@@ -77,7 +86,7 @@ static void update_time() {
   GRect small_circle_to_frame = GRect(pos.x - SMALL_CIRCLE_WIDTH - STROKE_WIDTH, pos.y - SMALL_CIRCLE_WIDTH - STROKE_WIDTH, (SMALL_CIRCLE_WIDTH + STROKE_WIDTH) * 2, (SMALL_CIRCLE_WIDTH + STROKE_WIDTH) * 2);
   // animate small circle shadow
   GRect small_circle_shadow_from_frame = layer_get_frame(s_small_circle_shadow_layer);
-  GRect small_circle_shadow_to_frame = GRect(pos.x - SMALL_CIRCLE_WIDTH - STROKE_WIDTH, pos.y - SMALL_CIRCLE_WIDTH - STROKE_WIDTH + SHADOW_OFFSET, (SMALL_CIRCLE_WIDTH + STROKE_WIDTH) * 2, (SMALL_CIRCLE_WIDTH + STROKE_WIDTH) * 2);
+  GRect small_circle_shadow_to_frame = GRect(pos.x - SMALL_CIRCLE_WIDTH - STROKE_WIDTH, pos.y - SMALL_CIRCLE_WIDTH - STROKE_WIDTH + SHADOW_OFFSET + 1, (SMALL_CIRCLE_WIDTH + STROKE_WIDTH) * 2, (SMALL_CIRCLE_WIDTH + STROKE_WIDTH) * 2);
   // create small circle animations
   s_small_circle_property_animation = property_animation_create_layer_frame(s_small_circle_layer, &small_circle_from_frame, &small_circle_to_frame);
   s_small_circle_shadow_property_animation = property_animation_create_layer_frame(s_small_circle_shadow_layer, &small_circle_shadow_from_frame, &small_circle_shadow_to_frame);
@@ -97,10 +106,10 @@ static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
 // ===============================
 static void small_circle_layer_draw(Layer *layer, GContext *ctx) {
   if (layer == s_small_circle_shadow_layer) {
-    graphics_context_set_fill_color(ctx, SHADOW_COLOR);
-    graphics_context_set_stroke_color(ctx, SHADOW_COLOR);
+    graphics_context_set_fill_color(ctx, s_colors[s_color_index * 2 + 1]);
+    graphics_context_set_stroke_color(ctx, s_colors[s_color_index * 2 + 1]);
   } else {
-    graphics_context_set_fill_color(ctx, MAIN_COLOR);
+    graphics_context_set_fill_color(ctx, s_colors[s_color_index * 2]);
     graphics_context_set_stroke_color(ctx, GColorWhite);
   }
   graphics_context_set_stroke_width(ctx, STROKE_WIDTH);
@@ -117,11 +126,9 @@ static void circle_layer_draw(Layer *layer, GContext *ctx) {
   const int16_t half_h = bounds.size.h / 2;
   GPoint pos;
   if (layer == s_circle_shadow_layer) {
-    graphics_context_set_fill_color(ctx, SHADOW_COLOR);
-    graphics_context_set_stroke_color(ctx, SHADOW_COLOR);
+    graphics_context_set_stroke_color(ctx, s_colors[s_color_index * 2 + 1]);
     pos = GPoint(half_w, half_h + SHADOW_OFFSET);
   } else {
-    graphics_context_set_fill_color(ctx, MAIN_COLOR);
     graphics_context_set_stroke_color(ctx, GColorWhite);
     pos = GPoint(half_w, half_h);
   }
@@ -148,7 +155,7 @@ static void main_window_load(Window *window) {
   // time layer shadow
   s_time_shadow_layer = text_layer_create(GRect(0, HEIGHT / 2 - TEXT_HEIGHT / 2 - TEXT_OFFSET + SHADOW_OFFSET + 1, WIDTH, TEXT_HEIGHT));
   text_layer_set_background_color(s_time_shadow_layer, GColorClear);
-  text_layer_set_text_color(s_time_shadow_layer, SHADOW_COLOR);
+  text_layer_set_text_color(s_time_shadow_layer, s_colors[s_color_index * 2 + 1]);
   // font
   s_time_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_MONTSERRAT_36));
   text_layer_set_font(s_time_layer, s_time_font);
@@ -165,7 +172,7 @@ static void main_window_load(Window *window) {
   s_small_circle_layer = layer_create(GRect(pos.x - SMALL_CIRCLE_WIDTH - STROKE_WIDTH, pos.y - SMALL_CIRCLE_WIDTH - STROKE_WIDTH, (SMALL_CIRCLE_WIDTH + STROKE_WIDTH) * 2, (SMALL_CIRCLE_WIDTH + STROKE_WIDTH) * 2));
   layer_set_update_proc(s_small_circle_layer, small_circle_layer_draw);
   // small circle layer shadow
-  s_small_circle_shadow_layer = layer_create(GRect(pos.x - SMALL_CIRCLE_WIDTH - STROKE_WIDTH, pos.y - SMALL_CIRCLE_WIDTH - STROKE_WIDTH + SHADOW_OFFSET, (SMALL_CIRCLE_WIDTH + STROKE_WIDTH) * 2, (SMALL_CIRCLE_WIDTH + STROKE_WIDTH) * 2));
+  s_small_circle_shadow_layer = layer_create(GRect(pos.x - SMALL_CIRCLE_WIDTH - STROKE_WIDTH, pos.y - SMALL_CIRCLE_WIDTH - STROKE_WIDTH + SHADOW_OFFSET + 1, (SMALL_CIRCLE_WIDTH + STROKE_WIDTH) * 2, (SMALL_CIRCLE_WIDTH + STROKE_WIDTH) * 2));
   layer_set_update_proc(s_small_circle_shadow_layer, small_circle_layer_draw);
 
   // ===================
@@ -201,13 +208,27 @@ static void main_window_unload(Window *window) {
 }
 
 static void init() {
+  // ================
+  // == set colors ==
+  // ================
+  s_colors[0] = GColorBlueMoon;
+  s_colors[1] = GColorDukeBlue;
+  s_colors[2] = GColorIslamicGreen;
+  s_colors[3] = GColorDarkGreen;
+  s_colors[4] = GColorFolly;
+  s_colors[5] = GColorBulgarianRose;
+
+  time_t temp = time(NULL);
+  struct tm *tick_time = localtime(&temp);
+
   // Register with TickTimerService
   tick_timer_service_subscribe(SECOND_UNIT, tick_handler);
 
   // Create main Window element and assign to pointer
   s_main_window = window_create();
 
-  window_set_background_color(s_main_window, MAIN_COLOR);
+  s_color_index = tick_time->tm_min % (LENGTH(s_colors) / 2);
+  window_set_background_color(s_main_window, s_colors[s_color_index * 2]);
 
   // Set handlers to manage the elements inside the Window
   window_set_window_handlers(s_main_window, (WindowHandlers) {
