@@ -37,6 +37,18 @@ static GFont s_time_font;
 static PropertyAnimation *s_small_circle_property_animation;
 static PropertyAnimation *s_small_circle_shadow_property_animation;
 
+
+// ========================================
+// == calculate position of small circle ==
+// ========================================
+static GPoint calculate_small_circle_position(tm *tick_time) {
+  GPoint pos;
+  int angle = TRIG_MAX_ANGLE * tick_time->tm_sec / 60;
+  pos.x = (sin_lookup(angle) * (WIDTH / 2 - PADDING - STROKE_WIDTH) / TRIG_MAX_RATIO) + WIDTH / 2;
+  pos.y = (-cos_lookup(angle) * (WIDTH / 2 - PADDING - STROKE_WIDTH) / TRIG_MAX_RATIO) + HEIGHT / 2;
+  return pos;
+}
+
 static void update_time() {
   // =======================
   // == update time layer ==
@@ -57,25 +69,21 @@ static void update_time() {
   text_layer_set_text(s_time_layer, buffer);
   text_layer_set_text(s_time_shadow_layer, buffer);
 
-  // ========================================
-  // == calculate position of small circle ==
-  // ========================================
-  int angle = TRIG_MAX_ANGLE * tick_time->tm_sec / 60;
-  int x = (sin_lookup(angle) * (WIDTH / 2 - PADDING - STROKE_WIDTH) / TRIG_MAX_RATIO) + WIDTH / 2;
-  int y = (-cos_lookup(angle) * (WIDTH / 2 - PADDING - STROKE_WIDTH) / TRIG_MAX_RATIO) + HEIGHT / 2;
-
   // ==========================
   // == animate small circle ==
   // ==========================
+  GPoint pos = calculate_small_circle_position(tick_time);
   GRect small_circle_from_frame = layer_get_frame(s_small_circle_layer);
-  GRect small_circle_to_frame = GRect(x - SMALL_CIRCLE_WIDTH, y - SMALL_CIRCLE_WIDTH, (SMALL_CIRCLE_WIDTH + STROKE_WIDTH) * 2, (SMALL_CIRCLE_WIDTH + STROKE_WIDTH) * 2);
+  GRect small_circle_to_frame = GRect(pos.x - SMALL_CIRCLE_WIDTH - STROKE_WIDTH, pos.y - SMALL_CIRCLE_WIDTH - STROKE_WIDTH, (SMALL_CIRCLE_WIDTH + STROKE_WIDTH) * 2, (SMALL_CIRCLE_WIDTH + STROKE_WIDTH) * 2);
   // animate small circle shadow
   GRect small_circle_shadow_from_frame = layer_get_frame(s_small_circle_shadow_layer);
-  GRect small_circle_shadow_to_frame = GRect(x - SMALL_CIRCLE_WIDTH, y - SMALL_CIRCLE_WIDTH + SHADOW_OFFSET, (SMALL_CIRCLE_WIDTH + STROKE_WIDTH) * 2, (SMALL_CIRCLE_WIDTH + STROKE_WIDTH) * 2);
+  GRect small_circle_shadow_to_frame = GRect(pos.x - SMALL_CIRCLE_WIDTH - STROKE_WIDTH, pos.y - SMALL_CIRCLE_WIDTH - STROKE_WIDTH + SHADOW_OFFSET, (SMALL_CIRCLE_WIDTH + STROKE_WIDTH) * 2, (SMALL_CIRCLE_WIDTH + STROKE_WIDTH) * 2);
   // create small circle animations
   s_small_circle_property_animation = property_animation_create_layer_frame(s_small_circle_layer, &small_circle_from_frame, &small_circle_to_frame);
   s_small_circle_shadow_property_animation = property_animation_create_layer_frame(s_small_circle_shadow_layer, &small_circle_shadow_from_frame, &small_circle_shadow_to_frame);
   // schedule small circle animations
+  animation_set_curve((Animation*) s_small_circle_property_animation, AnimationCurveLinear);
+  animation_set_curve((Animation*) s_small_circle_shadow_property_animation, AnimationCurveLinear);
   animation_schedule((Animation*) s_small_circle_property_animation);
   animation_schedule((Animation*) s_small_circle_shadow_property_animation);
 }
@@ -130,9 +138,6 @@ static void main_window_load(Window *window) {
   // circle lasyer  shadow
   s_circle_shadow_layer = layer_create(GRect(PADDING, PADDING + SHADOW_OFFSET, WIDTH - PADDING * 2, HEIGHT - PADDING * 2));
   layer_set_update_proc(s_circle_shadow_layer, circle_layer_draw);
-  // add to window
-  layer_add_child(window_get_root_layer(window), s_circle_shadow_layer);
-  layer_add_child(window_get_root_layer(window), s_circle_layer);
 
   // ================
   // == time layer ==
@@ -141,7 +146,7 @@ static void main_window_load(Window *window) {
   text_layer_set_background_color(s_time_layer, GColorClear);
   text_layer_set_text_color(s_time_layer, GColorWhite);
   // time layer shadow
-  s_time_shadow_layer = text_layer_create(GRect(0, HEIGHT / 2 - TEXT_HEIGHT / 2 - TEXT_OFFSET + SHADOW_OFFSET, WIDTH, TEXT_HEIGHT));
+  s_time_shadow_layer = text_layer_create(GRect(0, HEIGHT / 2 - TEXT_HEIGHT / 2 - TEXT_OFFSET + SHADOW_OFFSET + 1, WIDTH, TEXT_HEIGHT));
   text_layer_set_background_color(s_time_shadow_layer, GColorClear);
   text_layer_set_text_color(s_time_shadow_layer, SHADOW_COLOR);
   // font
@@ -150,20 +155,27 @@ static void main_window_load(Window *window) {
   text_layer_set_text_alignment(s_time_layer, GTextAlignmentCenter);
   text_layer_set_font(s_time_shadow_layer, s_time_font);
   text_layer_set_text_alignment(s_time_shadow_layer, GTextAlignmentCenter);
-  // add to window
-  layer_add_child(window_get_root_layer(window), text_layer_get_layer(s_time_shadow_layer));
-  layer_add_child(window_get_root_layer(window), text_layer_get_layer(s_time_layer));
 
   // ========================
   // == small circle layer ==
   // ========================
-  s_small_circle_layer = layer_create(GRect(0, 0, WIDTH, HEIGHT));
+  time_t temp = time(NULL);
+  struct tm *tick_time = localtime(&temp);
+  GPoint pos = calculate_small_circle_position(tick_time);
+  s_small_circle_layer = layer_create(GRect(pos.x - SMALL_CIRCLE_WIDTH - STROKE_WIDTH, pos.y - SMALL_CIRCLE_WIDTH - STROKE_WIDTH, (SMALL_CIRCLE_WIDTH + STROKE_WIDTH) * 2, (SMALL_CIRCLE_WIDTH + STROKE_WIDTH) * 2));
   layer_set_update_proc(s_small_circle_layer, small_circle_layer_draw);
   // small circle layer shadow
-  s_small_circle_shadow_layer = layer_create(GRect(0, 0, WIDTH, HEIGHT));
+  s_small_circle_shadow_layer = layer_create(GRect(pos.x - SMALL_CIRCLE_WIDTH - STROKE_WIDTH, pos.y - SMALL_CIRCLE_WIDTH - STROKE_WIDTH + SHADOW_OFFSET, (SMALL_CIRCLE_WIDTH + STROKE_WIDTH) * 2, (SMALL_CIRCLE_WIDTH + STROKE_WIDTH) * 2));
   layer_set_update_proc(s_small_circle_shadow_layer, small_circle_layer_draw);
-  // add to window
+
+  // ===================
+  // == add to window ==
+  // ===================
+  layer_add_child(window_get_root_layer(window), s_circle_shadow_layer);
   layer_add_child(window_get_root_layer(window), s_small_circle_shadow_layer);
+  layer_add_child(window_get_root_layer(window), s_circle_layer);
+  layer_add_child(window_get_root_layer(window), text_layer_get_layer(s_time_shadow_layer));
+  layer_add_child(window_get_root_layer(window), text_layer_get_layer(s_time_layer));
   layer_add_child(window_get_root_layer(window), s_small_circle_layer);
 }
 
@@ -182,6 +194,10 @@ static void main_window_unload(Window *window) {
   // Destroy Small Circle Layer
   layer_destroy(s_small_circle_layer);
   layer_destroy(s_small_circle_shadow_layer);
+
+  // destroy animations
+  property_animation_destroy(s_small_circle_property_animation);
+  property_animation_destroy(s_small_circle_shadow_property_animation);
 }
 
 static void init() {
