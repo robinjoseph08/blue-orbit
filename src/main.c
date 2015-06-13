@@ -1,8 +1,14 @@
 #include <pebble.h>
 
+// ============
+// == colors ==
+// ============
 #define MAIN_COLOR (GColor8) { .argb = 0b11000111 }
 #define SHADOW_COLOR (GColor8) { .argb = 0b11000010 }
 
+// ===============
+// == constants ==
+// ===============
 static const int WIDTH = 144;
 static const int HEIGHT = 168;
 static const int PADDING = 10;
@@ -12,69 +18,91 @@ static const int TEXT_OFFSET = 3;
 static const int STROKE_WIDTH = 2;
 static const int SMALL_CIRCLE_WIDTH = 6;
 
+// ======================
+// == static variables ==
+// ======================
 static Window *s_main_window;
-
+// time layers
 static TextLayer *s_time_layer;
 static TextLayer *s_time_shadow_layer;
-
+// circle layers
 static Layer *s_circle_layer;
 static Layer *s_circle_shadow_layer;
-
+// small circle layers
 static Layer *s_small_circle_layer;
 static Layer *s_small_circle_shadow_layer;
-
+// font
 static GFont s_time_font;
-static GPoint small_circle;
+// animations
+static PropertyAnimation *s_small_circle_property_animation;
+static PropertyAnimation *s_small_circle_shadow_property_animation;
 
 static void update_time() {
-  // Get a tm structure
+  // =======================
+  // == update time layer ==
+  // =======================
   time_t temp = time(NULL);
   struct tm *tick_time = localtime(&temp);
-
-  // Create a long-lived buffer
+  // create a long-lived buffer
   static char buffer[] = "00:00";
-
-  // Write the current hours and minutes into the buffer
+  // write the current hours and minutes into the buffer
   if(clock_is_24h_style() == true) {
-    // Use 24 hour format
+    // use 24 hour format
     strftime(buffer, sizeof("00:00"), "%H:%M", tick_time);
   } else {
-    // Use 12 hour format
+    // use 12 hour format
     strftime(buffer, sizeof("00:00"), "%I:%M", tick_time);
   }
-
-  // Display this time on the TextLayer
+  // set time on layer
   text_layer_set_text(s_time_layer, buffer);
   text_layer_set_text(s_time_shadow_layer, buffer);
 
+  // ========================================
+  // == calculate position of small circle ==
+  // ========================================
   int angle = TRIG_MAX_ANGLE * tick_time->tm_sec / 60;
-  small_circle.x = (sin_lookup(angle) * (WIDTH / 2 - PADDING - STROKE_WIDTH) / TRIG_MAX_RATIO) + WIDTH / 2;
-  small_circle.y = (-cos_lookup(angle) * (WIDTH / 2 - PADDING - STROKE_WIDTH) / TRIG_MAX_RATIO) + HEIGHT / 2;
+  int x = (sin_lookup(angle) * (WIDTH / 2 - PADDING - STROKE_WIDTH) / TRIG_MAX_RATIO) + WIDTH / 2;
+  int y = (-cos_lookup(angle) * (WIDTH / 2 - PADDING - STROKE_WIDTH) / TRIG_MAX_RATIO) + HEIGHT / 2;
 
-  // Make Small Circle update
-  layer_mark_dirty(s_small_circle_layer);
+  // ==========================
+  // == animate small circle ==
+  // ==========================
+  GRect small_circle_from_frame = layer_get_frame(s_small_circle_layer);
+  GRect small_circle_to_frame = GRect(x - SMALL_CIRCLE_WIDTH, y - SMALL_CIRCLE_WIDTH, (SMALL_CIRCLE_WIDTH + STROKE_WIDTH) * 2, (SMALL_CIRCLE_WIDTH + STROKE_WIDTH) * 2);
+  // animate small circle shadow
+  GRect small_circle_shadow_from_frame = layer_get_frame(s_small_circle_shadow_layer);
+  GRect small_circle_shadow_to_frame = GRect(x - SMALL_CIRCLE_WIDTH, y - SMALL_CIRCLE_WIDTH + SHADOW_OFFSET, (SMALL_CIRCLE_WIDTH + STROKE_WIDTH) * 2, (SMALL_CIRCLE_WIDTH + STROKE_WIDTH) * 2);
+  // create small circle animations
+  s_small_circle_property_animation = property_animation_create_layer_frame(s_small_circle_layer, &small_circle_from_frame, &small_circle_to_frame);
+  s_small_circle_shadow_property_animation = property_animation_create_layer_frame(s_small_circle_shadow_layer, &small_circle_shadow_from_frame, &small_circle_shadow_to_frame);
+  // schedule small circle animations
+  animation_schedule((Animation*) s_small_circle_property_animation);
+  animation_schedule((Animation*) s_small_circle_shadow_property_animation);
 }
 
 static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
   update_time();
 }
 
+// ===============================
+// == small circle layer update ==
+// ===============================
 static void small_circle_layer_draw(Layer *layer, GContext *ctx) {
-  GPoint pos;
   if (layer == s_small_circle_shadow_layer) {
     graphics_context_set_fill_color(ctx, SHADOW_COLOR);
     graphics_context_set_stroke_color(ctx, SHADOW_COLOR);
-    pos = GPoint(small_circle.x, small_circle.y + SHADOW_OFFSET);
   } else {
     graphics_context_set_fill_color(ctx, MAIN_COLOR);
     graphics_context_set_stroke_color(ctx, GColorWhite);
-    pos = small_circle;
   }
   graphics_context_set_stroke_width(ctx, STROKE_WIDTH);
-  graphics_fill_circle(ctx, pos, SMALL_CIRCLE_WIDTH);
-  graphics_draw_circle(ctx, pos, SMALL_CIRCLE_WIDTH);
+  graphics_fill_circle(ctx, GPoint(SMALL_CIRCLE_WIDTH + STROKE_WIDTH / 2, SMALL_CIRCLE_WIDTH + STROKE_WIDTH / 2), SMALL_CIRCLE_WIDTH);
+  graphics_draw_circle(ctx, GPoint(SMALL_CIRCLE_WIDTH + STROKE_WIDTH / 2, SMALL_CIRCLE_WIDTH + STROKE_WIDTH / 2), SMALL_CIRCLE_WIDTH);
 }
 
+// =========================
+// == circle layer update ==
+// =========================
 static void circle_layer_draw(Layer *layer, GContext *ctx) {
   GRect bounds = layer_get_bounds(layer);
   const int16_t half_w = bounds.size.w / 2;
@@ -90,7 +118,6 @@ static void circle_layer_draw(Layer *layer, GContext *ctx) {
     pos = GPoint(half_w, half_h);
   }
   graphics_context_set_stroke_width(ctx, STROKE_WIDTH);
-  // graphics_fill_circle(ctx, pos, half_w - STROKE_WIDTH);
   graphics_draw_circle(ctx, pos, half_w - STROKE_WIDTH);
 }
 
