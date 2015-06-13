@@ -1,0 +1,25 @@
+{
+  "uuid": "aa335860-4195-4987-b07a-d1ca1c40ff7d",
+  "shortName": "Blue Orbit",
+  "longName": "Blue Orbit",
+  "companyName": "Robin Joseph",
+  "versionLabel": "1.0",
+  "sdkVersion": "3",
+  "targetPlatforms": ["basalt"],
+  "watchapp": {
+    "watchface": true
+  },
+  "appKeys": {
+    "dummy": 0
+  },
+  "resources": {
+    "media": [
+      {
+        "type": "font",
+        "name": "MONTSERRAT_36",
+        "file": "fonts/Montserrat-Regular.ttf",
+        "compatibility":"2.7"
+      }
+    ]
+  }
+}
