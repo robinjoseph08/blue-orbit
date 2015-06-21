@@ -1,7 +1,8 @@
 # Blue Orbit
 
 A simple Pebble Time watch face that shows the hours and minutes numerically and
-represents the seconds by the position of the small orbiting circle.
+represents the minutes by the position of the small orbiting circle. It also
+shows the date underneath the time as well.
 
 ## Screenshots
 
@@ -9,8 +10,10 @@ represents the seconds by the position of the small orbiting circle.
 
 ## Notes
 
-Originally, I had the color of the background shift between blue, green, and red
-every minute, but it wasn't very battery efficient so I removed it.
+* I had the color of the background shift between blue, green, and red every
+minute, but it wasn't very battery efficient so I removed it.
+* The small orbiting circle used to represent the second hand instead of the
+minute hand, but that also drained the battery considerably.
 
 ## License
 

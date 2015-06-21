@@ -16,7 +16,13 @@
     "media": [
       {
         "type": "font",
-        "name": "MONTSERRAT_36",
+        "name": "MONTSERRAT_34",
+        "file": "fonts/Montserrat-Regular.ttf",
+        "compatibility":"2.7"
+      },
+      {
+        "type": "font",
+        "name": "MONTSERRAT_16",
         "file": "fonts/Montserrat-Regular.ttf",
         "compatibility":"2.7"
       }
